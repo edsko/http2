@@ -20,9 +20,11 @@ module Imports (
     GCBuffer,
     withForeignPtr,
     mallocPlainForeignPtrBytes,
+    labelThisThread,
 ) where
 
 import Control.Applicative
+import Control.Concurrent (myThreadId)
 import Control.Monad
 import Data.Bits hiding (Bits)
 import Data.ByteString.Internal (ByteString (..))
@@ -38,9 +40,17 @@ import Data.Ord
 import Data.String
 import Data.Word
 import Foreign.ForeignPtr
+import GHC.Conc (labelThread)
 import GHC.ForeignPtr (mallocPlainForeignPtrBytes)
 import Network.HTTP.Semantics
 import Network.HTTP.Types
 import Numeric
 
 type GCBuffer = ForeignPtr Word8
+
+----------------------------------------------------------------
+
+labelThisThread :: String -> IO ()
+labelThisThread label = do
+    tid <- myThreadId
+    labelThread tid label

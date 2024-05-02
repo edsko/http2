@@ -209,7 +209,7 @@ sendStreaming
 sendStreaming Context{..} mgr req sid newstrm strmbdy = do
     tbq <- newTBQueueIO 10 -- fixme: hard coding: 10
     tbqNonEmpty <- newTVarIO False
-    forkManagedUnmask mgr $ \unmask -> do
+    forkManagedUnmask mgr "http2:sendStreaming" $ \unmask -> do
         let push b = atomically $ do
                 writeTBQueue tbq (StreamingBuilder b)
                 writeTVar tbqNonEmpty True
