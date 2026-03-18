@@ -3,7 +3,7 @@
 
 module Network.HTTP2.Server.Run where
 
-import Control.Concurrent.Async (concurrently_)
+import Control.Concurrent.Async
 import Control.Concurrent.STM
 import qualified Control.Exception as E
 import Imports
@@ -127,13 +127,18 @@ runH2 conf ctx = do
     let mgr = threadManager ctx
         runReceiver = frameReceiver ctx conf
         runSender = frameSender ctx conf
-        runBackgroundThreads = do
-            er <- E.try $ concurrently_ runReceiver runSender
-            case er of
-                Right () -> return ()
-                Left e -> closureServer conf ctx e
-    T.stopAfter mgr runBackgroundThreads $ \res ->
-        closeAllStreams (oddStreamTable ctx) (evenStreamTable ctx) res
+        runBackgroundThreads = snd <$> concurrently runReceiver runSender
+    T.stopAfterWithResult mgr runBackgroundThreads $ \mRes -> do
+        let (err, isAbnormal) = checkAbnormalTermination (either id id mRes)
+        () <- closureServer conf ctx err
+        closeAllStreams (oddStreamTable ctx) (evenStreamTable ctx) (Just err)
+        when isAbnormal $ E.throwIO err
+  where
+    checkAbnormalTermination :: E.SomeException -> (E.SomeException, Bool)
+    checkAbnormalTermination err =
+        case E.fromException err of
+            Just ConnectionIsClosed -> (err, False)
+            _otherwise -> (err, True)
 
 -- connClose must not be called here since Run:fork calls it
 goaway :: Config -> ErrorCode -> ByteString -> IO ()
