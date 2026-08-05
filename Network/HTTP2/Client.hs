@@ -90,6 +90,7 @@ module Network.HTTP2.Client (
 
     -- * Error
     HTTP2Error (..),
+    StreamTerminated (..),
     ReasonPhrase,
     ErrorCode (
         ErrorCode,
@@ -115,3 +116,4 @@ import Network.HTTP.Semantics.Client
 import Network.HTTP2.Client.Run
 import Network.HTTP2.Frame
 import Network.HTTP2.H2 hiding (authority, scheme)
+import Network.HTTP2.H2.OutBodyIface
