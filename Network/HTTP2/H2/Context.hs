@@ -194,8 +194,8 @@ modifyPeerLastStreamId ctx sid = atomicModifyIORef' (peerLastStreamId ctx) $ \n 
 
 {-# INLINE setStreamState #-}
 setStreamState :: Context -> Stream -> StreamState -> IO ()
-setStreamState _ Stream{streamState} newState = do
-    oldState <- readIORef streamState
+setStreamState _ Stream{streamState} newState = atomically $ do
+    oldState <- readTVar streamState
     case (oldState, newState) of
         (Open _ (Body q _ _ _), Open _ (Body q' _ _ _))
             | q == q' ->
@@ -204,36 +204,36 @@ setStreamState _ Stream{streamState} newState = do
         (Open _ (Body q _ _ _), _) ->
             -- The stream is either closed, or is open with a /new/ body
             -- We need to close the old queue so that any reads from it won't block
-            atomically $ writeTQueue q $ Left $ toException ConnectionIsClosed
+            writeTQueue q $ Left $ toException ConnectionIsClosed
         _otherwise ->
             -- The stream wasn't open to start with; nothing to do
             return ()
-    writeIORef streamState newState
+    writeTVar streamState newState
 
 opened :: Context -> Stream -> IO ()
 opened ctx strm = setStreamState ctx strm (Open Nothing JustOpened)
 
 halfClosedRemote :: Context -> Stream -> IO ()
 halfClosedRemote ctx stream@Stream{streamState} = do
-    closingCode <- atomicModifyIORef streamState closeHalf
+    closingCode <- atomically $ stateTVar streamState closeHalf
     traverse_ (closed ctx stream) closingCode
   where
-    closeHalf :: StreamState -> (StreamState, Maybe ClosedCode)
-    closeHalf x@(Closed _) = (x, Nothing)
-    closeHalf (Open (Just cc) _) = (Closed cc, Just cc)
-    closeHalf _ = (HalfClosedRemote, Nothing)
+    closeHalf :: StreamState -> (Maybe ClosedCode, StreamState)
+    closeHalf x@(Closed _) = (Nothing, x)
+    closeHalf (Open (Just cc) _) = (Just cc, Closed cc)
+    closeHalf _ = (Nothing, HalfClosedRemote)
 
 halfClosedLocal :: Context -> Stream -> ClosedCode -> IO ()
 halfClosedLocal ctx stream@Stream{streamState} cc = do
-    shouldFinalize <- atomicModifyIORef streamState closeHalf
+    shouldFinalize <- atomically $ stateTVar streamState closeHalf
     when shouldFinalize $
         closed ctx stream cc
   where
-    closeHalf :: StreamState -> (StreamState, Bool)
-    closeHalf x@(Closed _) = (x, False)
-    closeHalf HalfClosedRemote = (Closed cc, True)
-    closeHalf (Open Nothing o) = (Open (Just cc) o, False)
-    closeHalf _ = (Open (Just cc) JustOpened, False)
+    closeHalf :: StreamState -> (Bool, StreamState)
+    closeHalf x@(Closed _) = (False, x)
+    closeHalf HalfClosedRemote = (True, Closed cc)
+    closeHalf (Open Nothing o) = (False, Open (Just cc) o)
+    closeHalf _ = (False, Open (Just cc) JustOpened)
 
 closed :: Context -> Stream -> ClosedCode -> IO ()
 closed ctx@Context{oddStreamTable, evenStreamTable} strm@Stream{streamNumber} cc = do

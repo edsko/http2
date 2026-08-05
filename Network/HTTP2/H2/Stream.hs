@@ -52,7 +52,7 @@ isReserved _ = False
 newOddStream :: StreamId -> WindowSize -> WindowSize -> IO Stream
 newOddStream sid txwin rxwin =
     Stream sid
-        <$> newIORef Idle
+        <$> newTVarIO Idle
         <*> newEmptyMVar
         <*> newTVarIO (newTxFlow txwin)
         <*> newIORef (newRxFlow rxwin)
@@ -61,7 +61,7 @@ newOddStream sid txwin rxwin =
 newEvenStream :: StreamId -> WindowSize -> WindowSize -> IO Stream
 newEvenStream sid txwin rxwin =
     Stream sid
-        <$> newIORef Reserved
+        <$> newTVarIO Reserved
         <*> newEmptyMVar
         <*> newTVarIO (newTxFlow txwin)
         <*> newIORef (newRxFlow rxwin)
@@ -71,7 +71,7 @@ newEvenStream sid txwin rxwin =
 
 {-# INLINE readStreamState #-}
 readStreamState :: Stream -> IO StreamState
-readStreamState Stream{streamState} = readIORef streamState
+readStreamState Stream{streamState} = readTVarIO streamState
 
 ----------------------------------------------------------------
 
