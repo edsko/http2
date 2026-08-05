@@ -10,6 +10,8 @@ import Control.Concurrent.STM
 import Control.Exception
 import Network.HTTP.Semantics
 import Network.HTTP.Semantics.IO
+import Network.HTTP2.H2.Context
+import Network.HTTP2.H2.Types
 
 ----------------------------------------------------------------
 
@@ -23,11 +25,13 @@ data StreamTerminated
 ----------------------------------------------------------------
 
 withOutBodyIface
-    :: TBQueue StreamingChunk
+    :: Context
+    -> Stream
+    -> TBQueue StreamingChunk
     -> (forall a. IO a -> IO a)
     -> (OutBodyIface -> IO r)
     -> IO r
-withOutBodyIface tbq unmask k = do
+withOutBodyIface _ctx _strm tbq unmask k = do
     terminated <- newTVarIO Nothing
     let checkNotTerminated :: STM ()
         checkNotTerminated = do
