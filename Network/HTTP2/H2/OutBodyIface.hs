@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 
 module Network.HTTP2.H2.OutBodyIface (
@@ -12,6 +13,7 @@ import Control.Exception
 import Network.HTTP.Semantics
 import Network.HTTP.Semantics.IO
 import Network.HTTP2.H2.Context
+import Network.HTTP2.H2.Sync
 import Network.HTTP2.H2.Types
 
 ----------------------------------------------------------------
@@ -33,7 +35,7 @@ withOutBodyIface
     -> (forall a. IO a -> IO a)
     -> (OutBodyIface -> IO r)
     -> IO r
-withOutBodyIface _ctx strm tbq unmask k = do
+withOutBodyIface ctx@Context{outputQ} strm tbq unmask k = do
     terminated <- newTVarIO Nothing
     let checkNotTerminated :: STM ()
         checkNotTerminated = do
@@ -67,6 +69,10 @@ withOutBodyIface _ctx strm tbq unmask k = do
                 _otherwise ->
                     return ()
 
+        cancelAfterFinish :: Maybe SomeException -> STM ()
+        cancelAfterFinish mErr =
+            writeTQueue outputQ $ makeOutputIO ctx strm (OReset mErr)
+
         iface :: OutBodyIface
         iface =
             OutBodyIface
@@ -92,9 +98,15 @@ withOutBodyIface _ctx strm tbq unmask k = do
                         (Nothing, Nothing) -> do
                             writeTVar terminated (Just StreamCancelled)
                             writeTBQueue tbq $ StreamingCancelled mErr
-                        (Nothing, Just _) ->
-                            -- We already terminated
+                        (Nothing, Just StreamCancelled) ->
+                            -- Already cancelled
                             return ()
+                        (Nothing, Just _) -> do
+                            -- We finished streaming (that is, sending messages to the peer),
+                            -- but we must still be able to cancel the stream entirely
+                            -- (that is, tell the peer that we no longer want to /receive/ messages: RST_STREAM)
+                            writeTVar terminated (Just StreamCancelled)
+                            cancelAfterFinish mErr
                         (Just _code, _) ->
                             -- Peer already closed
                             return ()

@@ -162,7 +162,13 @@ frameSender
         outputAndSync out@(Output strm otyp sync) off = E.handle (\e -> resetStream strm InternalError e >> return off) $ do
             state <- readStreamState strm
             if isHalfClosedLocal state
-                then return off
+                then case otyp of
+                    OReset mErr | not (isClosed state) -> do
+                        -- RST_STREAM is the only frame we can still send after half-closing
+                        resetStreamWith strm mErr
+                        return off
+                    _otherwise ->
+                        return off
                 else case otyp of
                     OHeader hdr mnext tlrmkr -> do
                         (off', mout') <- outputHeader strm hdr mnext tlrmkr sync off
