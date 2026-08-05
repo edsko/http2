@@ -24,7 +24,7 @@ module Network.HPACK.Table.Dynamic (
     getRevIndex,
 ) where
 
-import Control.Exception (throwIO)
+import qualified Control.Exception as E
 import Data.Array.Base (unsafeRead, unsafeWrite)
 import Data.Array.IO (IOArray, newArray)
 import qualified Data.ByteString.Char8 as BS
@@ -43,7 +43,7 @@ import Network.HPACK.Types
 {-# INLINE toIndexedEntry #-}
 toIndexedEntry :: DynamicTable -> Index -> IO Entry
 toIndexedEntry dyntbl idx
-    | idx <= 0 = throwIO $ IndexOverrun idx
+    | idx <= 0 = E.throwIO $ IndexOverrun idx
     | idx <= staticTableSize = return $ toStaticEntry idx
     | otherwise = toDynamicEntry dyntbl idx
 
@@ -121,7 +121,7 @@ data DynamicTable = DynamicTable
 {-# INLINE adj #-}
 adj :: Int -> Int -> IO Int
 adj maxN x
-    | maxN == 0 = throwIO TooSmallTableSize
+    | maxN == 0 = E.throwIO TooSmallTableSize
     | otherwise =
         let ret = (x + maxN) `mod` maxN
          in return ret
@@ -402,7 +402,7 @@ toDynamicEntry DynamicTable{..} idx = do
     maxN <- readIORef maxNumOfEntries
     off <- readIORef offset
     n <- readIORef numOfEntries
-    when (idx > n + staticTableSize) $ throwIO $ IndexOverrun idx
+    when (idx > n + staticTableSize) $ E.throwIO $ IndexOverrun idx
     didx <- adj maxN (idx + off - staticTableSize)
     table <- readIORef circularTable
     unsafeRead table didx

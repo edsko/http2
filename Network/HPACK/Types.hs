@@ -20,7 +20,7 @@ module Network.HPACK.Types (
     BufferOverrun (..),
 ) where
 
-import Control.Exception as E
+import qualified Control.Exception as E
 import Network.ByteOrder (Buffer, BufferOverrun (..), BufferSize)
 
 import Imports
@@ -87,4 +87,4 @@ data DecodeError
     | TooLargeHeader
     deriving (Eq, Show)
 
-instance Exception DecodeError
+instance E.Exception DecodeError

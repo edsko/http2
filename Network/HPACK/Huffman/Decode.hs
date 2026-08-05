@@ -9,7 +9,7 @@ module Network.HPACK.Huffman.Decode (
     GCBuffer,
 ) where
 
-import Control.Exception (throwIO)
+import qualified Control.Exception as E
 import Data.Array (Array, listArray)
 import Data.Array.Base (unsafeAt)
 import qualified Data.ByteString as BS
@@ -69,16 +69,16 @@ decH :: WriteBuffer -> ReadBuffer -> Int -> IO ()
 decH wbuf rbuf len = go len (way256 `unsafeAt` 0)
   where
     go 0 way0 = case way0 of
-        WayStep Nothing _ -> throwIO IllegalEos
+        WayStep Nothing _ -> E.throwIO IllegalEos
         WayStep (Just i) _
             | i <= 8 -> return ()
-            | otherwise -> throwIO TooLongEos
+            | otherwise -> E.throwIO TooLongEos
     go n way0 = do
         w <- read8 rbuf
         way <- doit way0 w
         go (n - 1) way
     doit way w = case next way w of
-        EndOfString -> throwIO EosInTheMiddle
+        EndOfString -> E.throwIO EosInTheMiddle
         Forward n -> return $ way256 `unsafeAt` fromIntegral n
         GoBack n v -> do
             write8 wbuf v

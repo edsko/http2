@@ -14,7 +14,7 @@ module Network.HPACK.HeaderBlock.Decode (
     decodeSimple, -- testing
 ) where
 
-import Control.Exception (catch, throwIO)
+import qualified Control.Exception as E
 import Data.Array.Base (unsafeRead, unsafeWrite)
 import qualified Data.Array.IO as IOA
 import qualified Data.Array.Unsafe as Unsafe
@@ -65,7 +65,7 @@ decodeTokenHeader
     -- ^ An HPACK format
     -> IO TokenHeaderTable
 decodeTokenHeader dyntbl inp =
-    decodeHPACK dyntbl inp (decodeSophisticated (toTokenHeader dyntbl)) `catch` \BufferOverrun -> throwIO HeaderBlockTruncated
+    decodeHPACK dyntbl inp (decodeSophisticated (toTokenHeader dyntbl)) `E.catch` \BufferOverrun -> E.throwIO HeaderBlockTruncated
 
 decodeHPACK
     :: DynamicTable
@@ -150,34 +150,34 @@ decodeSophisticated decTokenHeader rbuf = do
                         then do
                             mx <- unsafeRead arr tokenIx
                             -- duplicated
-                            when (isJust mx) $ throwIO IllegalHeaderName
+                            when (isJust mx) $ E.throwIO IllegalHeaderName
                             -- unknown
-                            when (isMaxTokenIx tokenIx) $ throwIO IllegalHeaderName
+                            when (isMaxTokenIx tokenIx) $ E.throwIO IllegalHeaderName
                             unsafeWrite arr tokenIx (Just v)
                             pseudo
                         else do
                             -- 0-Length Headers Leak - CVE-2019-9516
-                            when (tokenKey == "") $ throwIO IllegalHeaderName
+                            when (tokenKey == "") $ E.throwIO IllegalHeaderName
                             when (isMaxTokenIx tokenIx && B8.any isUpper (original tokenKey)) $
-                                throwIO IllegalHeaderName
+                                E.throwIO IllegalHeaderName
                             unsafeWrite arr tokenIx (Just v)
                             if isCookieTokenIx tokenIx
                                 then normal 0 empty (empty << v)
                                 else normal 0 (empty << tv) empty
                 else return []
         normal n builder cookie
-            | n > headerLimit = throwIO TooLargeHeader
+            | n > headerLimit = E.throwIO TooLargeHeader
             | otherwise = do
                 leftover <- remainingSize rbuf
                 if leftover >= 1
                     then do
                         w <- read8 rbuf
                         tv@(Token{..}, v) <- decTokenHeader w rbuf
-                        when isPseudo $ throwIO IllegalHeaderName
+                        when isPseudo $ E.throwIO IllegalHeaderName
                         -- 0-Length Headers Leak - CVE-2019-9516
-                        when (tokenKey == "") $ throwIO IllegalHeaderName
+                        when (tokenKey == "") $ E.throwIO IllegalHeaderName
                         when (isMaxTokenIx tokenIx && B8.any isUpper (original tokenKey)) $
-                            throwIO IllegalHeaderName
+                            E.throwIO IllegalHeaderName
                         unsafeWrite arr tokenIx (Just v)
                         if isCookieTokenIx tokenIx
                             then normal (n + 1) builder (cookie << v)
@@ -197,7 +197,7 @@ toTokenHeader :: DynamicTable -> Word8 -> ReadBuffer -> IO TokenHeader
 toTokenHeader dyntbl w rbuf
     | w `testBit` 7 = indexed dyntbl w rbuf
     | w `testBit` 6 = incrementalIndexing dyntbl w rbuf
-    | w `testBit` 5 = throwIO IllegalTableSizeUpdate
+    | w `testBit` 5 = E.throwIO IllegalTableSizeUpdate
     | w `testBit` 4 = neverIndexing dyntbl w rbuf
     | otherwise = withoutIndexing dyntbl w rbuf
 
@@ -206,7 +206,7 @@ tableSizeUpdate dyntbl w rbuf = do
     let w' = mask5 w
     siz <- decodeI 5 w' rbuf
     suitable <- isSuitableSize siz dyntbl
-    unless suitable $ throwIO TooLargeTableSize
+    unless suitable $ E.throwIO TooLargeTableSize
     renewDynamicTable siz dyntbl
 
 ----------------------------------------------------------------

@@ -7,7 +7,6 @@ module Network.HPACK.HeaderBlock.Encode (
     encodeS,
 ) where
 
-import Control.Exception (bracket, throwIO)
 import qualified Control.Exception as E
 import qualified Data.ByteString as BS
 import Data.ByteString.Internal (create)
@@ -68,13 +67,13 @@ encodeHeader'
     -> TokenHeaderList
     -> IO ByteString
     -- ^ An HPACK format
-encodeHeader' stgy siz dyntbl hs = bracket (mallocBytes siz) free enc
+encodeHeader' stgy siz dyntbl hs = E.bracket (mallocBytes siz) free enc
   where
     enc buf = do
         (hs', len) <- encodeTokenHeader buf siz stgy True dyntbl hs
         case hs' of
             [] -> create len $ \p -> copyBytes p buf len
-            _ -> throwIO BufferOverrun
+            _ -> E.throwIO BufferOverrun
 
 ----------------------------------------------------------------
 

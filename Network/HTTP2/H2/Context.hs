@@ -5,7 +5,6 @@
 module Network.HTTP2.H2.Context where
 
 import Control.Concurrent.STM
-import Control.Exception
 import qualified Control.Exception as E
 import Data.IORef
 import Network.Control
@@ -90,7 +89,7 @@ data Context = Context
     , mySockAddr         :: SockAddr
     , peerSockAddr       :: SockAddr
     , threadManager      :: T.ThreadManager
-    , receiverDone       :: TVar (Maybe SomeException)
+    , receiverDone       :: TVar (Maybe E.SomeException)
     , workersDone        :: STM Bool
     , informationalCallback :: StreamId -> TokenHeaderTable -> IO ()
     -- ^ Client only: called when a 1xx informational response (e.g. 103 Early
@@ -204,7 +203,7 @@ setStreamState _ Stream{streamState} newState = atomically $ do
         (Open _ (Body q _ _ _), _) ->
             -- The stream is either closed, or is open with a /new/ body
             -- We need to close the old queue so that any reads from it won't block
-            writeTQueue q $ Left $ toException ConnectionIsClosed
+            writeTQueue q $ Left $ E.toException ConnectionIsClosed
         _otherwise ->
             -- The stream wasn't open to start with; nothing to do
             return ()
@@ -242,8 +241,8 @@ closed ctx@Context{oddStreamTable, evenStreamTable} strm@Stream{streamNumber} cc
         else deleteOdd oddStreamTable streamNumber err
     setStreamState ctx strm (Closed cc) -- anyway
   where
-    err :: SomeException
-    err = toException (closedCodeToError streamNumber cc)
+    err :: E.SomeException
+    err = E.toException (closedCodeToError streamNumber cc)
 
 ----------------------------------------------------------------
 -- From peer

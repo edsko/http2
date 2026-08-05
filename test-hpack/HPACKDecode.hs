@@ -12,7 +12,7 @@ module HPACKDecode (
 #if __GLASGOW_HASKELL__ < 709
 import Control.Applicative ((<$>))
 #endif
-import Control.Exception
+import qualified Control.Exception as E
 import Control.Monad (when)
 import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Char8 as B8
@@ -66,7 +66,7 @@ test conf c dyntbl = do
     case size c of
         Nothing -> return ()
         Just siz -> renewDynamicTable siz dyntbl
-    x <- try $ decodeHeader dyntbl inp
+    x <- E.try $ decodeHeader dyntbl inp
     case x of
         Left e -> return $ Just $ show (e :: DecodeError)
         Right hs' -> do

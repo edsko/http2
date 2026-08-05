@@ -7,7 +7,7 @@ module Network.HTTP2.Client.Run where
 import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM
-import Control.Exception
+import qualified Control.Exception as E
 import qualified Data.ByteString.UTF8 as UTF8
 import Data.IORef
 import Data.IP (IPv6)
@@ -121,7 +121,7 @@ getResponse :: Stream -> IO Response
 getResponse strm = do
     mRsp <- takeMVar $ streamInput strm
     case mRsp of
-        Left err -> throwIO err
+        Left err -> E.throwIO err
         Right rsp -> return $ Response rsp
 
 setup :: ClientConfig -> Config -> IO Context
@@ -141,7 +141,7 @@ setup ClientConfig{..} conf@Config{..} = do
 
 runH2 :: Config -> Context -> IO a -> IO a
 runH2 conf ctx runClient = do
-    T.stopAfter mgr (try runAll >>= closureClient conf ctx) $ \res ->
+    T.stopAfter mgr (E.try runAll >>= closureClient conf ctx) $ \res ->
         closeAllStreams (oddStreamTable ctx) (evenStreamTable ctx) res
   where
     mgr = threadManager ctx
@@ -152,7 +152,7 @@ runH2 conf ctx runClient = do
         er <- race runReceiver runClient
         case er of
             Right r -> return r
-            Left err -> throwIO err
+            Left err -> E.throwIO err
 
     -- When 'runClientReceiver' terminates, it is important we give the sender
     -- a chance to terminate cleanly also (it's possible the client terminated

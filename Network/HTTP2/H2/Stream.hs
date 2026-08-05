@@ -4,7 +4,7 @@ module Network.HTTP2.H2.Stream where
 
 import Control.Concurrent
 import Control.Concurrent.STM
-import Control.Exception
+import qualified Control.Exception as E
 import Control.Monad
 import Data.IORef
 import Data.Maybe (fromMaybe)
@@ -72,7 +72,7 @@ readStreamState Stream{streamState} = readTVarIO streamState
 ----------------------------------------------------------------
 
 closeAllStreams
-    :: TVar OddStreamTable -> TVar EvenStreamTable -> Maybe SomeException -> IO ()
+    :: TVar OddStreamTable -> TVar EvenStreamTable -> Maybe E.SomeException -> IO ()
 closeAllStreams ovar evar mErr = do
     ostrms <- clearOddStreamTable ovar
     mapM_ finalize ostrms
@@ -91,8 +91,8 @@ closeAllStreams ovar evar mErr = do
             _otherwise ->
                 return ()
 
-    err :: Either SomeException a
-    err = Left $ fromMaybe (toException ConnectionIsClosed) mErr
+    err :: Either E.SomeException a
+    err = Left $ fromMaybe (E.toException ConnectionIsClosed) mErr
 
 ----------------------------------------------------------------
 
