@@ -118,8 +118,14 @@ server req aux sendResponse = case requestMethod req of
     Just "GET" -> case requestPath req of
         Just "/" -> sendResponse responseHello []
         Just "/early" -> do
-            auxSendInformational aux earlyHints103 [("link", "</style.css>; rel=preload; as=style")]
-            auxSendInformational aux earlyHints103 [("link", "</app.js>; rel=preload; as=script")]
+            auxSendInformational
+                aux
+                earlyHints103
+                [("link", "</style.css>; rel=preload; as=style")]
+            auxSendInformational
+                aux
+                earlyHints103
+                [("link", "</app.js>; rel=preload; as=script")]
             sendResponse responseHello []
         Just "/stream" -> sendResponse responseInfinite []
         Just "/push" -> do
@@ -196,7 +202,7 @@ trailersMaker ctx (Just bs) = return $ NextTrailersMaker $ trailersMaker ctx'
 runClientEarly :: IORef [TokenHeaderTable] -> IO (Maybe Status)
 runClientEarly hintsRef = runTCPClient host port $ \s ->
     E.bracket (allocSimpleConfig s 4096) freeSimpleConfig $ \conf0 ->
-        C.run cliconf (conf0{confOnInformational = onInformational }) $ \sendRequest _aux ->
+        C.run cliconf (conf0{confOnInformational = onInformational}) $ \sendRequest _aux ->
             sendRequest (C.requestNoBody methodGet "/early" []) (return . C.responseStatus)
   where
     cliconf = C.defaultClientConfig{C.authority = host}

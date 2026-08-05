@@ -18,6 +18,7 @@ import qualified System.ThreadManager as T
 import Imports hiding (insert)
 import Network.HTTP2.Frame
 import Network.HTTP2.H2
+import Network.HTTP2.H2.OutBodyIface
 
 #if MIN_VERSION_http_semantics(0,4,1)
 import qualified Data.ByteString.Char8 as C8
@@ -193,10 +194,10 @@ sendStreaming
     -> Stream
     -> (OutBodyIface -> IO ())
     -> IO (TBQueue StreamingChunk)
-sendStreaming Context{..} strm strmbdy = do
+sendStreaming ctx@Context{..} strm strmbdy = do
     tbq <- newTBQueueIO 10 -- fixme: hard coding: 10
     T.forkManagedTimeout threadManager label $ \th ->
-        withOutBodyIface tbq id $ \iface -> do
+        withOutBodyIface ctx strm tbq id $ \iface -> do
             let iface' =
                     iface
                         { outBodyPush = \b -> do

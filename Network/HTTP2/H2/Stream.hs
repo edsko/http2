@@ -1,7 +1,4 @@
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE RankNTypes #-}
 
 module Network.HTTP2.H2.Stream where
 
@@ -12,7 +9,6 @@ import Control.Monad
 import Data.IORef
 import Data.Maybe (fromMaybe)
 import Network.Control
-import Network.HTTP.Semantics
 import Network.HTTP.Semantics.IO
 
 import Network.HTTP2.Frame
@@ -52,7 +48,7 @@ isReserved _ = False
 newOddStream :: StreamId -> WindowSize -> WindowSize -> IO Stream
 newOddStream sid txwin rxwin =
     Stream sid
-        <$> newIORef Idle
+        <$> newTVarIO Idle
         <*> newEmptyMVar
         <*> newTVarIO (newTxFlow txwin)
         <*> newIORef (newRxFlow rxwin)
@@ -61,7 +57,7 @@ newOddStream sid txwin rxwin =
 newEvenStream :: StreamId -> WindowSize -> WindowSize -> IO Stream
 newEvenStream sid txwin rxwin =
     Stream sid
-        <$> newIORef Reserved
+        <$> newTVarIO Reserved
         <*> newEmptyMVar
         <*> newTVarIO (newTxFlow txwin)
         <*> newIORef (newRxFlow rxwin)
@@ -71,7 +67,7 @@ newEvenStream sid txwin rxwin =
 
 {-# INLINE readStreamState #-}
 readStreamState :: Stream -> IO StreamState
-readStreamState Stream{streamState} = readIORef streamState
+readStreamState Stream{streamState} = readTVarIO streamState
 
 ----------------------------------------------------------------
 
@@ -99,63 +95,6 @@ closeAllStreams ovar evar mErr = do
     err = Left $ fromMaybe (toException ConnectionIsClosed) mErr
 
 ----------------------------------------------------------------
-
-data StreamTerminated
-    = StreamPushedFinal
-    | StreamCancelled
-    | StreamOutOfScope
-    deriving (Show)
-    deriving anyclass (Exception)
-
-withOutBodyIface
-    :: TBQueue StreamingChunk
-    -> (forall a. IO a -> IO a)
-    -> (OutBodyIface -> IO r)
-    -> IO r
-withOutBodyIface tbq unmask k = do
-    terminated <- newTVarIO Nothing
-    let whenNotTerminated act = do
-            mTerminated <- readTVar terminated
-            maybe act throwSTM mTerminated
-
-        terminateWith reason act = do
-            mTerminated <- readTVar terminated
-            case mTerminated of
-                Just _ ->
-                    -- Already terminated
-                    return ()
-                Nothing -> do
-                    writeTVar terminated (Just reason)
-                    act
-
-        iface =
-            OutBodyIface
-                { outBodyUnmask = unmask
-                , outBodyPush = \b ->
-                    atomically $
-                        whenNotTerminated $
-                            writeTBQueue tbq $
-                                StreamingBuilder b NotEndOfStream
-                , outBodyPushFinal = \b ->
-                    atomically $ whenNotTerminated $ do
-                        writeTVar terminated (Just StreamPushedFinal)
-                        writeTBQueue tbq $ StreamingBuilder b (EndOfStream Nothing)
-                        writeTBQueue tbq $ StreamingFinished Nothing
-                , outBodyFlush =
-                    atomically $
-                        whenNotTerminated $
-                            writeTBQueue tbq StreamingFlush
-                , outBodyCancel =
-                    atomically
-                        . terminateWith StreamCancelled
-                        . writeTBQueue tbq
-                        . StreamingCancelled
-                }
-        finished = atomically $ do
-            terminateWith StreamOutOfScope $
-                writeTBQueue tbq $
-                    StreamingFinished Nothing
-    k iface `finally` finished
 
 nextForStreaming
     :: TBQueue StreamingChunk
