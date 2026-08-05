@@ -22,6 +22,7 @@ import Text.Read (readMaybe)
 import Imports
 import Network.HTTP2.Frame
 import Network.HTTP2.H2
+import Network.HTTP2.H2.OutBodyIface
 
 -- | Client configuration
 data ClientConfig = ClientConfig

@@ -18,6 +18,7 @@ import qualified System.ThreadManager as T
 import Imports hiding (insert)
 import Network.HTTP2.Frame
 import Network.HTTP2.H2
+import Network.HTTP2.H2.OutBodyIface
 
 #if MIN_VERSION_http_semantics(0,4,1)
 import qualified Data.ByteString.Char8 as C8
