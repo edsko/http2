@@ -79,6 +79,7 @@ frameSender
     ctx@Context{outputQ, controlQ, encodeDynamicTable, outputBufferLimit}
     Config{..} = do
         labelMe "H2 sender"
+        -- err is re-thrown by "runH2"
         loop 0 `E.catch` return
       where
         ----------------------------------------------------------------

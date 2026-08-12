@@ -54,6 +54,7 @@ frameReceiver ctx@Context{receiverDone} conf@Config{..} =
         case mErr of
             Left err -> do
                 atomically $ writeTVar receiverDone $ Just err
+                -- err is re-thrown by "runH2"
                 return err
             Right x -> do
                 absurd x -- We only terminate due to exceptions
