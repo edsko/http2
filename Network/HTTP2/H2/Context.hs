@@ -193,20 +193,24 @@ modifyPeerLastStreamId ctx sid = atomicModifyIORef' (peerLastStreamId ctx) $ \n 
 
 {-# INLINE setStreamState #-}
 setStreamState :: Context -> Stream -> StreamState -> IO ()
-setStreamState _ Stream{streamState} newState = atomically $ do
+setStreamState _ Stream{streamNumber, streamState} newState = atomically $ do
     oldState <- readTVar streamState
+
+    -- Inform consumers of any streams that we close
     case (oldState, newState) of
         (Open _ (Body q _ _ _), Open _ (Body q' _ _ _))
             | q == q' ->
                 -- The stream stays open with the same body; nothing to do
                 return ()
+        (Open _ (Body q _ _ _), Closed cc) ->
+            writeTQueue q $ Left $ E.toException $ closedCodeToError streamNumber cc
         (Open _ (Body q _ _ _), _) ->
-            -- The stream is either closed, or is open with a /new/ body
-            -- We need to close the old queue so that any reads from it won't block
+            -- The stream is opened with a /new/ body
             writeTQueue q $ Left $ E.toException ConnectionIsClosed
         _otherwise ->
             -- The stream wasn't open to start with; nothing to do
             return ()
+
     writeTVar streamState newState
 
 opened :: Context -> Stream -> IO ()

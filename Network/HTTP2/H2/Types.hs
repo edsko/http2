@@ -132,7 +132,7 @@ closedCodeToError sid cc =
     case cc of
         Finished -> ConnectionIsClosed
         Killed -> ConnectionIsTimeout
-        Reset err -> ConnectionErrorIsReceived err sid "Connection was reset"
+        Reset err -> StreamResetIsReceived err sid
         ResetByMe err -> BadThingHappen err
 
 ----------------------------------------------------------------
@@ -186,7 +186,7 @@ data OutputType
     | OPush TokenHeaderList StreamId -- associated stream id from client
     | ONext DynaNext TrailersMaker
     | OInformational [Header]
-    | OReset (Maybe SomeException)
+    | OReset (Maybe E.SomeException)
 
 data Sync = Done | Cont Output
 
@@ -210,6 +210,7 @@ data HTTP2Error
     | ConnectionErrorIsReceived ErrorCode StreamId ReasonPhrase
     | ConnectionErrorIsSent ErrorCode StreamId ReasonPhrase
     | StreamErrorIsReceived ErrorCode StreamId
+    | StreamResetIsReceived ErrorCode StreamId
     | StreamErrorIsSent ErrorCode StreamId ReasonPhrase
     | BadThingHappen E.SomeException
     deriving (Show)
