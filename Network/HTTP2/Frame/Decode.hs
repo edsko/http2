@@ -23,7 +23,7 @@ module Network.HTTP2.Frame.Decode (
     decodeContinuationFrame,
 ) where
 
-import Control.Exception (Exception)
+import qualified Control.Exception as E
 import Data.Array (Array, listArray, (!))
 import qualified Data.ByteString as BS
 import Foreign.Ptr (Ptr, plusPtr)
@@ -38,7 +38,7 @@ import Network.HTTP2.Frame.Types
 data FrameDecodeError = FrameDecodeError ErrorCode StreamId ShortByteString
     deriving (Eq, Show)
 
-instance Exception FrameDecodeError
+instance E.Exception FrameDecodeError
 
 ----------------------------------------------------------------
 

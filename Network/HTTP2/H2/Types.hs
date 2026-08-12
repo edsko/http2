@@ -7,11 +7,6 @@ module Network.HTTP2.H2.Types where
 
 import Control.Concurrent
 import Control.Concurrent.STM
-import Control.Exception (
-    Exception,
-    SomeAsyncException (..),
-    SomeException (..),
- )
 import qualified Control.Exception as E
 import Data.IORef
 import Foreign.Ptr (nullPtr)
@@ -114,7 +109,7 @@ data OpenState
     | NoBody TokenHeaderTable
     | HasBody TokenHeaderTable
     | Body
-        (TQueue (Either SomeException (ByteString, Bool)))
+        (TQueue (Either E.SomeException (ByteString, Bool)))
         (Maybe Int) -- received Content-Length
         -- compared the body length for error checking
         (IORef Int) -- actual body length
@@ -124,7 +119,7 @@ data ClosedCode
     = Finished
     | Killed
     | Reset ErrorCode
-    | ResetByMe SomeException
+    | ResetByMe E.SomeException
     deriving (Show)
 
 -- | Used for streams which are cancelled by calling
@@ -164,7 +159,7 @@ type RxQ = TQueue (Either E.SomeException (ByteString, Bool))
 data Stream = Stream
     { streamNumber :: StreamId
     , streamState :: TVar StreamState
-    , streamInput :: MVar (Either SomeException InpObj) -- Client only
+    , streamInput :: MVar (Either E.SomeException InpObj) -- Client only
     , streamTxFlow :: TVar TxFlow
     , streamRxFlow :: IORef RxFlow
     , streamRxQ :: IORef (Maybe RxQ)
@@ -297,8 +292,8 @@ defaultConfig =
         , confOnInformational = \_ _ -> return ()
         }
 
-isAsyncException :: Exception e => e -> Bool
+isAsyncException :: E.Exception e => e -> Bool
 isAsyncException e =
     case E.fromException (E.toException e) of
-        Just (SomeAsyncException _) -> True
+        Just (E.SomeAsyncException _) -> True
         Nothing -> False

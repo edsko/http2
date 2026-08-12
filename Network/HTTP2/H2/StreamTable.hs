@@ -33,7 +33,7 @@ module Network.HTTP2.H2.StreamTable (
 
 import Control.Concurrent
 import Control.Concurrent.STM
-import Control.Exception
+import qualified Control.Exception as E
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as IntMap
 import Network.Control (LRUCache)
@@ -78,7 +78,7 @@ insertOdd' var k v = atomically $ modifyTVar var $ \OddStreamTable{..} ->
     let oddTable' = IntMap.insert k v oddTable
      in OddStreamTable oddConc oddTable'
 
-deleteOdd :: TVar OddStreamTable -> IntMap.Key -> SomeException -> IO ()
+deleteOdd :: TVar OddStreamTable -> IntMap.Key -> E.SomeException -> IO ()
 deleteOdd var k err = do
     mv <- atomically deleteStream
     case mv of
@@ -128,7 +128,7 @@ insertEven' var k v = atomically $ modifyTVar var $ \EvenStreamTable{..} ->
     let evenTable' = IntMap.insert k v evenTable
      in EvenStreamTable evenConc evenTable' evenCache
 
-deleteEven :: TVar EvenStreamTable -> IntMap.Key -> SomeException -> IO ()
+deleteEven :: TVar EvenStreamTable -> IntMap.Key -> E.SomeException -> IO ()
 deleteEven var k err = do
     mv <- atomically deleteStream
     case mv of

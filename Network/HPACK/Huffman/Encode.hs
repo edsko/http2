@@ -6,7 +6,7 @@ module Network.HPACK.Huffman.Encode (
     encodeHuffman,
 ) where
 
-import Control.Exception (throwIO)
+import qualified Control.Exception as E
 import Data.Array.Base (unsafeAt)
 import Data.Array.IArray (listArray)
 import Data.Array.Unboxed (UArray)
@@ -75,7 +75,7 @@ enc WriteBuffer{..} rbuf = do
             off' = off - len
         {-# INLINE write #-}
         write p w = do
-            when (p >= limit) $ throwIO BufferOverrun
+            when (p >= limit) $ E.throwIO BufferOverrun
             let w8 = fromIntegral (w `shiftR` shiftForWrite) :: Word8
             poke p w8
             let p' = p `plusPtr` 1

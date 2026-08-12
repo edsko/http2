@@ -22,6 +22,7 @@ import Data.IORef
 import Data.Void
 import Network.Control
 import Network.HTTP.Semantics
+import qualified System.IO.Error as E
 import qualified System.ThreadManager as T
 
 import Imports hiding (delete, insert)
@@ -53,6 +54,7 @@ frameReceiver ctx@Context{receiverDone} conf@Config{..} =
         case mErr of
             Left err -> do
                 atomically $ writeTVar receiverDone $ Just err
+                -- err is re-thrown by "runH2"
                 return err
             Right x -> do
                 absurd x -- We only terminate due to exceptions
@@ -708,12 +710,7 @@ goaway ctx err msg = do
     return $ goawayFrame sid err msg
 
 sendGoaway :: Config -> ByteString -> IO ()
-sendGoaway Config{..} frame = confSendAll frame `E.catch` ignore
-
-ignore :: E.SomeException -> IO ()
-ignore (E.SomeException e)
-    | isAsyncException e = E.throwIO e
-    | otherwise = return ()
+sendGoaway Config{..} frame = confSendAll frame `E.catchIOError` \_ -> return ()
 
 ----------------------------------------------------------------
 

@@ -2,7 +2,7 @@
 
 module Main where
 
-import Control.Exception
+import qualified Control.Exception as E
 import Criterion.Main
 import Data.ByteString (ByteString)
 import Network.HPACK
