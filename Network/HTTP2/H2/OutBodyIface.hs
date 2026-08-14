@@ -42,13 +42,6 @@ withOutBodyIface ctx@Context{outputQ} strm tbq unmask k = do
             mTerminated <- readTVar terminated
             maybe (return ()) throwSTM mTerminated
 
-        getIsClosed :: STM (Maybe ClosedCode)
-        getIsClosed = do
-            st <- readTVar (streamState strm)
-            case st of
-                Closed code -> return $ Just code
-                _otherwise -> return Nothing
-
         -- Check if the peer is still listening for messages
         --
         -- It is important to call 'checkNotClosed' prior to enqueuing stream
@@ -68,6 +61,13 @@ withOutBodyIface ctx@Context{outputQ} strm tbq unmask k = do
                     throwSTM $ StreamRemoteReset code
                 _otherwise ->
                     return ()
+
+        getIsClosed :: STM (Maybe ClosedCode)
+        getIsClosed = do
+            st <- readTVar (streamState strm)
+            case st of
+                Closed code -> return $ Just code
+                _otherwise -> return Nothing
 
         cancelAfterFinish :: Maybe SomeException -> STM ()
         cancelAfterFinish mErr =

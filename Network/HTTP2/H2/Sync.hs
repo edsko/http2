@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Network.HTTP2.H2.Sync (
@@ -101,12 +102,10 @@ checkLoop :: LoopCheck -> IO Bool
 checkLoop LoopCheck{..} = atomically $ do
     tout <- readTVar lcTimeout
     state <- readTVar lcState
-    case (tout, state) of
-        (True, _) ->
-            return False
-        (_, Closed{}) ->
-            return False
-        _otherwise -> do
+    if
+        | tout -> return False
+        | Closed{} <- state -> return False
+        | otherwise -> do
             waitStreaming' lcTBQ
             waitStreamWindowSizeSTM lcWindow
             return True
