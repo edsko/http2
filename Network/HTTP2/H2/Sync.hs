@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Network.HTTP2.H2.Sync (
@@ -76,7 +77,6 @@ syncWithSender' Context{..} pop lc = loop
             Cont newout -> do
                 cont <- checkLoop lc
                 when cont $ do
-                    -- This is justified by the precondition above
                     enqueueOutput outputQ newout
                     loop
 
@@ -85,13 +85,15 @@ newLoopCheck strm mtbq = do
     tovar <- newTVarIO False
     return $
         LoopCheck
-            { lcTBQ = mtbq
+            { lcState = streamState strm
+            , lcTBQ = mtbq
             , lcTimeout = tovar
             , lcWindow = streamTxFlow strm
             }
 
 data LoopCheck = LoopCheck
-    { lcTBQ :: Maybe (TBQueue StreamingChunk)
+    { lcState :: TVar StreamState
+    , lcTBQ :: Maybe (TBQueue StreamingChunk)
     , lcTimeout :: TVar Bool
     , lcWindow :: TVar TxFlow
     }
@@ -99,9 +101,11 @@ data LoopCheck = LoopCheck
 checkLoop :: LoopCheck -> IO Bool
 checkLoop LoopCheck{..} = atomically $ do
     tout <- readTVar lcTimeout
-    if tout
-        then return False
-        else do
+    state <- readTVar lcState
+    if
+        | tout -> return False
+        | Closed{} <- state -> return False
+        | otherwise -> do
             waitStreaming' lcTBQ
             waitStreamWindowSizeSTM lcWindow
             return True
