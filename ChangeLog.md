@@ -1,5 +1,10 @@
 # ChangeLog for http2
 
+## 5.4.4
+
+* Improvements for dealing with RST_STREAM
+  [#172](https://github.com/kazu-yamamoto/http2/pull/172)
+
 ## 5.4.3
 
 * auxSendInformational: gate usage with CPP to http-semantics >= 0.4.1
